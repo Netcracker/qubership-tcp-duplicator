@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Build the manager binary
-FROM golang:1.23.3-alpine3.20 AS builder
+FROM golang:1.24.2-alpine3.20 AS builder
 
 WORKDIR /workspace
 
@@ -22,7 +22,7 @@ COPY ./ ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -o duplicator ./main.go
 
 # Copy to vanilla alpine container
-FROM golang:1.23.3-alpine3.20
+FROM golang:1.24.2-alpine3.20
 
 ENV USER_UID="1001" \
     USER_NAME="duplicator" \
