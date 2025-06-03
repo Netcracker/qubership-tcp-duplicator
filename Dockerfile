@@ -13,16 +13,19 @@
 # limitations under the License.
 
 # Build the manager binary
-FROM golang:1.24.2-alpine3.21 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24.2-alpine3.21 AS builder
+ARG BUILDPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /workspace
 
 COPY ./ ./
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -o duplicator ./main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build -o duplicator ./main.go
 
 # Copy to vanilla alpine container
-FROM alpine3.21
+FROM alpine:3.21
 
 ENV USER_UID="1001" \
     USER_NAME="duplicator" \
