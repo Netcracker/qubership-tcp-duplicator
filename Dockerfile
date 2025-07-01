@@ -25,7 +25,7 @@ COPY ./ ./
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GO111MODULE=on go build -o duplicator ./main.go
 
 # Copy to vanilla alpine container
-FROM alpine:3.21
+FROM alpine:3.22
 
 ENV USER_UID="1001" \
     USER_NAME="duplicator" \
