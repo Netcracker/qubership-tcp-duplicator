@@ -126,7 +126,7 @@ func TestTCPReader_Listen(t *testing.T) {
 				t.Errorf("TCPReader.Listen() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if reader.listener != nil {
-				reader.listener.Close()
+				_ = reader.listener.Close()
 			}
 		})
 	}
@@ -135,8 +135,8 @@ func TestTCPReader_Listen(t *testing.T) {
 func TestTCPReader_Read(t *testing.T) {
 	// Use net.Pipe to create connected pipes for testing
 	serverConn, clientConn := net.Pipe()
-	defer serverConn.Close()
-	defer clientConn.Close()
+	defer func() { _ = serverConn.Close() }()
+	defer func() { _ = clientConn.Close() }()
 
 	reader := TCPReader{}
 	var mu sync.Mutex
@@ -145,8 +145,8 @@ func TestTCPReader_Read(t *testing.T) {
 	// Write test data to clientConn
 	testData := []byte("hello\x00world\x00")
 	go func() {
-		clientConn.Write(testData)
-		clientConn.Close()
+		_, _ = clientConn.Write(testData)
+		_ = clientConn.Close()
 	}()
 
 	// Read from serverConn
@@ -165,7 +165,7 @@ func TestTCPReader_AcceptConn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	reader := TCPReader{listener: listener}
 
@@ -176,7 +176,7 @@ func TestTCPReader_AcceptConn(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 	}()
 
 	// Accept connection
@@ -184,5 +184,5 @@ func TestTCPReader_AcceptConn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conn.Close()
+	_ = conn.Close()
 }
