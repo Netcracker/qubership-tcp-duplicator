@@ -11,5 +11,6 @@ jobs:
     with:
       actor: ${{ github.actor }}
       sonar-project-key: ${{ vars.SONAR_PROJECT_KEY }}
+      cover-packages: './converters,./tcpreader,./tcpwriter'
     secrets:
       sonar-token: ${{ secrets.SONAR_TOKEN }}
