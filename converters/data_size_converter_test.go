@@ -32,6 +32,7 @@ func TestConvertToBytes(t *testing.T) {
 		{"4GB", 4294967296},
 		{"6 GB", 0},
 		{"sevenGB", 0},
+		{"1TB", 0}, // Invalid unit
 	}
 	for _, tableValue := range table {
 		value, _ := ToBytes(tableValue.input)
