@@ -4,11 +4,23 @@ updates:
   directory: "/"
   schedule:
     interval: "monthly"
+  commit-message:
+    prefix: chore
+    prefix-development: chore
+    include: scope
+  groups:
+    actions-deps:
+      patterns:
+        - "*"
 # Go mod bot configurations
 - package-ecosystem: "gomod"
   directory: "/"
   schedule:
     interval: "monthly"
+  commit-message:
+    prefix: chore
+    prefix-development: chore
+    include: scope
   groups:
     k8s.io:
       patterns:
@@ -22,3 +34,11 @@ updates:
   directory: "/"
   schedule:
     interval: "monthly"
+  commit-message:
+    prefix: chore
+    prefix-development: chore
+    include: scope
+  groups:
+    actions-deps:
+      patterns:
+        - "*"
