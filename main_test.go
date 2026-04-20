@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 		panic("TestMain: could not find free port: " + err.Error())
 	}
 	listenPort = fmt.Sprintf(":%d", ln.Addr().(*net.TCPAddr).Port)
-	ln.Close()
+	_ = ln.Close()
 
 	os.Exit(m.Run())
 }
@@ -73,7 +73,7 @@ func TestNewTCPWriteHandler(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer target.Close()
+	defer func() { _ = target.Close() }()
 
 	t.Setenv("TCP_ADDRESSES", target.Addr().String())
 
@@ -86,13 +86,13 @@ func TestNewTCPWriteHandlerMultipleAddresses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer t1.Close()
+	defer func() { _ = t1.Close() }()
 
 	t2, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer t2.Close()
+	defer func() { _ = t2.Close() }()
 
 	t.Setenv("TCP_ADDRESSES", t1.Addr().String()+","+t2.Addr().String())
 
@@ -107,7 +107,7 @@ func TestMainIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal("mock target listen:", err)
 	}
-	defer targetLn.Close()
+	defer func() { _ = targetLn.Close() }()
 
 	received := make(chan []byte, 1)
 	go func() {
@@ -115,7 +115,7 @@ func TestMainIntegration(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 		buf := make([]byte, 256)
 		n, _ := conn.Read(buf)
@@ -128,7 +128,7 @@ func TestMainIntegration(t *testing.T) {
 		t.Fatal("find free port:", err)
 	}
 	dupPort := dupLn.Addr().(*net.TCPAddr).Port
-	dupLn.Close()
+	_ = dupLn.Close()
 
 	// Override package-level vars for this test before starting main().
 	listenPort = fmt.Sprintf(":%d", dupPort)
@@ -150,7 +150,7 @@ func TestMainIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal("connect to duplicator:", err)
 	}
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 
 	// tcpreader splits on null bytes, so terminate the message with \x00.
 	msg := append([]byte("hello-integration-test"), 0)
