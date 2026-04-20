@@ -32,7 +32,7 @@ var (
 	listenPort = func() string {
 		value := os.Getenv("LISTEN_PORT")
 		if len(value) == 0 {
-			log.Fatal("[ERROR] Incorrect value for \"LISTEN_PORT\" variable:")
+			return ""
 		}
 		return ":" + value
 	}()
@@ -115,6 +115,10 @@ func resolveTCPAddr(address string) *net.TCPAddr {
 }
 
 func main() {
+	if listenPort == "" {
+		log.Fatal("[ERROR] Incorrect value for \"LISTEN_PORT\" variable:")
+	}
+
 	payload := NewPayload()
 	reader := NewTCPReader(listenPort)
 
