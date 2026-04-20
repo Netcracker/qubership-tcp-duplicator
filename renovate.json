@@ -1,0 +1,61 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "schedule:weekly"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "prConcurrentLimit": 20,
+  "packageRules": [
+    {
+      "description": "All other GitHub Actions (catch-all, overridden by more specific rules below)",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["*"],
+      "groupName": "actions-deps",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "Netcracker GitHub Actions and reusable workflows",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["Netcracker/**", "netcracker/**"],
+      "groupName": "netcracker-actions",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "All other Docker images (catch-all, overridden by more specific rules below)",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["*"],
+      "groupName": "docker-deps",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "Netcracker Docker images",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["ghcr.io/netcracker/**", "ghcr.io/Netcracker/**"],
+      "groupName": "netcracker-images",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "All other Go module dependencies (catch-all, overridden by more specific rules below)",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["require", "indirect"],
+      "groupName": "go-deps"
+    },
+    {
+      "description": "Kubernetes-related Go modules",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["k8s.io/**", "sigs.k8s.io/**"],
+      "groupName": "k8s-go-deps",
+      "separateMajorMinor": false
+    },
+    {
+      "description": "Go toolchain version",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang", "toolchain"],
+      "groupName": "go-toolchain",
+      "separateMajorMinor": false
+    }
+  ]
+}

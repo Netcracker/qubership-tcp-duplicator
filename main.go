@@ -32,7 +32,7 @@ var (
 	listenPort = func() string {
 		value := os.Getenv("LISTEN_PORT")
 		if len(value) == 0 {
-			log.Fatal("[ERROR] Incorrect value for \"LISTEN_PORT\" variable:")
+			return ""
 		}
 		return ":" + value
 	}()
@@ -115,8 +115,9 @@ func resolveTCPAddr(address string) *net.TCPAddr {
 }
 
 func main() {
-	var wg sync.WaitGroup
-	wg.Add(2)
+	if listenPort == "" {
+		log.Fatal("[ERROR] Incorrect value for \"LISTEN_PORT\" variable:")
+	}
 
 	payload := NewPayload()
 	reader := NewTCPReader(listenPort)
@@ -143,23 +144,21 @@ func main() {
 				log.Print("[WARN] Connections accepting error: ", err.Error())
 			}
 		}
-		wg.Done()
 	}()
 
 	go func() {
 		nextFlush := time.Now().Add(flushInterval)
 		for {
-			payload.Mutex.Lock()
+			payload.Lock()
 			if dataLen := uint64(len(payload.data)); (time.Now().After(nextFlush) || dataLen >= bufferLimitSize) && dataLen > 0 {
 				tcpWriteHandler.FlushData(&payload.data, &retryCount)
 				payload.data = payload.data[:0]
 				nextFlush = time.Now().Add(flushInterval)
 			}
-			payload.Mutex.Unlock()
+			payload.Unlock()
 			time.Sleep(checkInterval)
 		}
-		wg.Done()
 	}()
 
-	wg.Wait()
+	select {}
 }
