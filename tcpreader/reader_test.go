@@ -20,7 +20,9 @@ func TestListenAndAcceptConn(t *testing.T) {
 		t.Fatalf("listen failed: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = reader.listener.Close()
+		if err := reader.listener.Close(); err != nil {
+			t.Errorf("close listener: %v", err)
+		}
 	})
 
 	done := make(chan struct{})
@@ -31,7 +33,11 @@ func TestListenAndAcceptConn(t *testing.T) {
 			t.Errorf("dial failed: %v", err)
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Errorf("close dialed conn: %v", err)
+			}
+		}()
 	}()
 
 	conn, err := reader.AcceptConn()
@@ -45,7 +51,11 @@ func TestListenAndAcceptConn(t *testing.T) {
 func TestReadAppendsAllZeroDelimitedMessages(t *testing.T) {
 	reader := TCPReader{}
 	serverConn, clientConn := net.Pipe()
-	defer serverConn.Close()
+	defer func() {
+		if err := serverConn.Close(); err != nil {
+			t.Errorf("close server conn: %v", err)
+		}
+	}()
 
 	var (
 		mu   sync.Mutex

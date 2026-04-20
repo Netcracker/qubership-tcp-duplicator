@@ -27,7 +27,11 @@ func TestAttachAndDetachWriter(t *testing.T) {
 
 func TestOpenConnectionAndCloseConnection(t *testing.T) {
 	listener, accepted := startTCPServer(t)
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Errorf("close listener: %v", err)
+		}
+	}()
 
 	writer := TCPWriter{Addr: listener.Addr().(*net.TCPAddr)}
 	writer.openConnection()
@@ -48,7 +52,9 @@ func TestOpenConnectionAndCloseConnection(t *testing.T) {
 func TestOpenConnectionFailureLeavesConnectionNil(t *testing.T) {
 	listener, _ := startTCPServer(t)
 	addr := listener.Addr().(*net.TCPAddr)
-	listener.Close()
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close listener: %v", err)
+	}
 
 	writer := TCPWriter{Addr: addr}
 	writer.openConnection()
@@ -65,7 +71,11 @@ func TestCloseConnectionWithNilConnection(t *testing.T) {
 
 func TestDoWriteWritesBytes(t *testing.T) {
 	listener, accepted := startTCPServer(t)
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Errorf("close listener: %v", err)
+		}
+	}()
 
 	writer := TCPWriter{Addr: listener.Addr().(*net.TCPAddr)}
 	writer.openConnection()
@@ -75,7 +85,11 @@ func TestDoWriteWritesBytes(t *testing.T) {
 	defer writer.closeConnection()
 
 	serverConn := <-accepted
-	defer serverConn.Close()
+	defer func() {
+		if err := serverConn.Close(); err != nil {
+			t.Errorf("close server conn: %v", err)
+		}
+	}()
 
 	payload := []byte("hello writer")
 	if err := writer.doWrite(&payload); err != nil {
@@ -93,7 +107,11 @@ func TestDoWriteWritesBytes(t *testing.T) {
 
 func TestDoWriteReturnsErrorForClosedConnection(t *testing.T) {
 	listener, accepted := startTCPServer(t)
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Errorf("close listener: %v", err)
+		}
+	}()
 
 	writer := TCPWriter{Addr: listener.Addr().(*net.TCPAddr)}
 	writer.openConnection()
@@ -102,7 +120,11 @@ func TestDoWriteReturnsErrorForClosedConnection(t *testing.T) {
 	}
 
 	serverConn := <-accepted
-	defer serverConn.Close()
+	defer func() {
+		if err := serverConn.Close(); err != nil {
+			t.Errorf("close server conn: %v", err)
+		}
+	}()
 
 	writer.closeConnection()
 
@@ -114,7 +136,11 @@ func TestDoWriteReturnsErrorForClosedConnection(t *testing.T) {
 
 func TestWriteOpensConnectionOnDemand(t *testing.T) {
 	listener, accepted := startTCPServer(t)
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			t.Errorf("close listener: %v", err)
+		}
+	}()
 
 	writer := TCPWriter{Addr: listener.Addr().(*net.TCPAddr)}
 	payload := []byte("flush me")
@@ -125,7 +151,11 @@ func TestWriteOpensConnectionOnDemand(t *testing.T) {
 	go writer.write(&payload, &retryCount, &wg)
 
 	serverConn := <-accepted
-	defer serverConn.Close()
+	defer func() {
+		if err := serverConn.Close(); err != nil {
+			t.Errorf("close server conn: %v", err)
+		}
+	}()
 
 	buf := make([]byte, len(payload))
 	if _, err := io.ReadFull(serverConn, buf); err != nil {
@@ -141,7 +171,9 @@ func TestWriteOpensConnectionOnDemand(t *testing.T) {
 func TestWriteSkipsWhenConnectionCannotBeOpened(t *testing.T) {
 	listener, _ := startTCPServer(t)
 	addr := listener.Addr().(*net.TCPAddr)
-	listener.Close()
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close listener: %v", err)
+	}
 
 	writer := TCPWriter{Addr: addr}
 	payload := []byte("flush me")
@@ -159,9 +191,17 @@ func TestWriteSkipsWhenConnectionCannotBeOpened(t *testing.T) {
 
 func TestFlushDataWritesToAllWriters(t *testing.T) {
 	listener1, accepted1 := startTCPServer(t)
-	defer listener1.Close()
+	defer func() {
+		if err := listener1.Close(); err != nil {
+			t.Errorf("close listener1: %v", err)
+		}
+	}()
 	listener2, accepted2 := startTCPServer(t)
-	defer listener2.Close()
+	defer func() {
+		if err := listener2.Close(); err != nil {
+			t.Errorf("close listener2: %v", err)
+		}
+	}()
 
 	handler := TCPWriteHandler{}
 	handler.AttachWriter(TCPWriter{Addr: listener1.Addr().(*net.TCPAddr)})
@@ -213,7 +253,11 @@ func capturePayload(t *testing.T, accepted <-chan *net.TCPConn, size int, done c
 
 	select {
 	case conn := <-accepted:
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Errorf("close accepted conn: %v", err)
+			}
+		}()
 		buf := make([]byte, size)
 		if _, err := io.ReadFull(conn, buf); err != nil {
 			t.Errorf("read failed: %v", err)
