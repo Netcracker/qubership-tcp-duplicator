@@ -1,3 +1,3 @@
 module github.com/Netcracker/qubership-tcp-duplicator
 
-go 1.18
+go 1.26.1
