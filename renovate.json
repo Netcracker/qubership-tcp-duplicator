@@ -19,7 +19,8 @@
         "!ghcr.io/netcracker/**",
         "!ghcr.io/Netcracker/**",
         "!netcracker/**",
-        "!Netcracker/**"
+        "!Netcracker/**",
+        "!golang"
       ],
       "groupName": "docker-deps",
       "separateMajorMinor": false
