@@ -9,6 +9,9 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       sonar-project-key: ${{ steps.config.outputs.sonar-project-key }}
     steps:
@@ -17,13 +20,15 @@ jobs:
         id: config
         env:
           ACTOR: ${{ github.actor }}
+          IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
         run: |
           restricted=$(python3 -c "
           import yaml, os
           with open('.github/config/build-config.yaml') as f:
               config = yaml.safe_load(f)
           actors = config.get('restricted-actors', [])
-          print('true' if os.environ['ACTOR'] in actors else 'false')
+          is_fork = os.environ.get('IS_FORK') == 'true'
+          print('true' if is_fork or os.environ['ACTOR'] in actors else 'false')
           ")
           if [ "$restricted" = "true" ]; then
             echo "sonar-project-key=" >> "$GITHUB_OUTPUT"
@@ -34,6 +39,7 @@ jobs:
   lint:
     name: Lint Go modules
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -60,8 +66,23 @@ jobs:
       sonar-project-key: ${{ needs.prepare.outputs.sonar-project-key }}
       cover-packages: './converters,./tcpreader,./tcpwriter'
       skip-docker: true
-    secrets: inherit
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     permissions:
       contents: read
-      pull-requests: write
-      packages: write
+
+  go-ci-gate:
+    name: Go CI Gate
+    needs: [prepare, lint, test]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Require Go validation
+        if: >-
+          needs.prepare.result != 'success' ||
+          needs.lint.result != 'success' ||
+          needs.test.result != 'success'
+        run: exit 1
