@@ -1,5 +1,6 @@
 ---
 name: Build Artifacts
+run-name: "Ref: ${{ github.ref_name }}. On ${{ github.event_name }}"
 
 on:
   release:
@@ -15,11 +16,8 @@ on:
   pull_request:
     branches:
     - '**'
-    paths-ignore:
-    - '.github/**'
-    - 'docs/**'
-    - '*.md'
-    - 'LICENSE'
+
+permissions: {}
 
 concurrency:
   # On main/release, we don't want any jobs cancelled so the sha is used to name the group
@@ -29,8 +27,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  multiplatform_build:
-    if: github.event.pull_request.user.login != 'dependabot[bot]' || github.event_name == 'pull_request'
+  changes:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+    - name: Detect image build changes
+      id: filter
+      uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.3
+      with:
+        predicate-quantifier: every
+        filters: |
+          run:
+            - '**'
+            - '!docs/**'
+            - '!**/*.md'
+            - '!LICENSE'
+
+  pull_request_build:
+    needs: changes
+    if: ${{ always() && needs.changes.result == 'success' && needs.changes.outputs.run != 'false' }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,10 +60,64 @@ jobs:
           file: Dockerfile
           context: .
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
     name: ${{ matrix.component.name }}
     steps:
     - name: Checkout
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+    - name: Build
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        no-cache: true
+        context: ${{ matrix.component.context }}
+        file: ${{ matrix.component.file }}
+        platforms: linux/amd64,linux/arm64
+        push: false
+        provenance: false
+
+  image-ci-gate:
+    name: Image CI Gate
+    needs: [changes, pull_request_build]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+    - name: Require image build when applicable
+      if: >-
+        needs.changes.result != 'success' ||
+        (needs.changes.outputs.run != 'false' && needs.pull_request_build.result != 'success')
+      run: exit 1
+
+  multiplatform_build:
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+        - name: qubership-tcp-duplicator
+          file: Dockerfile
+          context: .
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    name: ${{ matrix.component.name }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -75,7 +150,7 @@ jobs:
         file: ${{ matrix.component.file }}
         platforms: linux/amd64,linux/arm64
         # See https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions#fetching-metadata-about-a-pull-request
-        push: ${{ github.event_name != 'pull_request' && github.actor != 'dependabot[bot]' }}
+        push: ${{ github.actor_id != '49699333' }}
         provenance: false
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

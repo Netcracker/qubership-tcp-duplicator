@@ -9,6 +9,9 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
     outputs:
       sonar-project-key: ${{ steps.config.outputs.sonar-project-key }}
     steps:
@@ -17,13 +20,15 @@ jobs:
         id: config
         env:
           ACTOR: ${{ github.actor }}
+          IS_FORK: ${{ github.event.pull_request.head.repo.fork }}
         run: |
           restricted=$(python3 -c "
           import yaml, os
           with open('.github/config/build-config.yaml') as f:
               config = yaml.safe_load(f)
           actors = config.get('restricted-actors', [])
-          print('true' if os.environ['ACTOR'] in actors else 'false')
+          is_fork = os.environ.get('IS_FORK') == 'true'
+          print('true' if is_fork or os.environ['ACTOR'] in actors else 'false')
           ")
           if [ "$restricted" = "true" ]; then
             echo "sonar-project-key=" >> "$GITHUB_OUTPUT"
@@ -34,6 +39,7 @@ jobs:
   lint:
     name: Lint Go modules
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -54,14 +60,44 @@ jobs:
   test:
     needs: prepare
     name: Build and test with coverage
-    uses: Netcracker/qubership-core-infra/.github/workflows/generic-go-build.yaml@e8322e6ee168795edec1d103e289b3fe3ceb805d # v2.6.0
-    with:
-      go-module-dir: '.'
-      sonar-project-key: ${{ needs.prepare.outputs.sonar-project-key }}
-      cover-packages: './converters,./tcpreader,./tcpwriter'
-      skip-docker: true
-    secrets: inherit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
-      pull-requests: write
-      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Test with coverage
+        run: go test -v ./... -coverpkg=./converters,./tcpreader,./tcpwriter -coverprofile=coverage.out
+      - name: Upload coverage report to SonarCloud
+        if: needs.prepare.outputs.sonar-project-key != ''
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
+        with:
+          args: >
+            -Dsonar.projectKey=${{ needs.prepare.outputs.sonar-project-key }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+
+  go-ci-gate:
+    name: Go CI Gate
+    needs: [prepare, lint, test]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Require Go validation
+        if: >-
+          needs.prepare.result != 'success' ||
+          needs.lint.result != 'success' ||
+          needs.test.result != 'success'
+        run: exit 1
