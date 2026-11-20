@@ -78,7 +78,7 @@ jobs:
         run: go test -v ./... -coverpkg=./converters,./tcpreader,./tcpwriter -coverprofile=coverage.out
       - name: Upload coverage report to SonarCloud
         if: needs.prepare.outputs.sonar-project-key != ''
-        uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8.4.1
+        uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5
         with:
           args: >
             -Dsonar.projectKey=${{ needs.prepare.outputs.sonar-project-key }}
